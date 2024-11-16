@@ -4,8 +4,9 @@ using Medicina.Repository;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
+using System.Xml.Linq;
 
-namespace Medicina.Controllers
+namespace TelemedicinaRural.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -16,6 +17,34 @@ namespace Medicina.Controllers
         public DoctorController(DoctorRepository doctorRepository)
         {
             this.doctorRepository = doctorRepository;
+        }
+
+
+        [HttpGet("pulldata")]
+        public async Task<IActionResult> PullData([FromQuery] DateTime? UpdatedAt = null, [FromQuery] int? Limit = null)
+        {
+            var data = await doctorRepository.Get(updatedAt: UpdatedAt, limit:Limit);
+
+            var rxData = data.Select(x =>
+                new RxDoctor()
+                {
+                    Id = x.Id.ToString(),
+                    Nombre = x.Nombre,
+                    FechaNacimiento = x.FechaNacimiento,
+                    Genero = x.Genero,
+                    Nacionalidad = x.Nacionalidad,
+                    Especialidades = x.Especialidades,
+                    IdsAgenda = x.IdsAgenda.Select(x => x.ToString()).ToList(),
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt,
+                }
+            );
+
+            return Ok(new
+            {
+                documents = rxData,
+                checkpoint = rxData.Select(x => x.UpdatedAt).Max()
+            });
         }
 
         [HttpGet()]

@@ -11,12 +11,12 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using System.Security.Claims;
 
-namespace Medicina.Controllers
+namespace TelemedicinaRural.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     //[Authorize]
-    public class AppointmentController : ControllerBase
+    public class CitaController : ControllerBase
     {
         
         private readonly UserManager<ApplicationUser> _userManager;
@@ -25,7 +25,7 @@ namespace Medicina.Controllers
         private readonly PacienteRepository pacienteRepository;
         private readonly DoctorRepository doctorRepository;
 
-        public AppointmentController( UserManager<ApplicationUser> userManager, CitaRepository citaRepository, EmailService emailService,PacienteRepository pacienteRepository, DoctorRepository doctorRepository)
+        public CitaController( UserManager<ApplicationUser> userManager, CitaRepository citaRepository, EmailService emailService,PacienteRepository pacienteRepository, DoctorRepository doctorRepository)
         {
            
             _userManager = userManager;
@@ -33,6 +33,32 @@ namespace Medicina.Controllers
             this.emailService = emailService;
             this.pacienteRepository = pacienteRepository;
             this.doctorRepository = doctorRepository;
+        }
+
+        [HttpGet("pulldata")]
+        public async Task<IActionResult> GetData([FromQuery] DateTime? UpdatedAt = null, [FromQuery] int? Limit = null)
+        {
+            var data = await citaRepository.Get(updatedAt:UpdatedAt,limit:Limit);
+
+            var rxData = data.Select(x =>
+                new RxCita()
+                {
+                    Id = x.Id.ToString(),
+                    IdPaciente = x.IdPaciente.ToString(),
+                    idDoctor = x.IdDoctor.ToString(),
+                    Especialidad = x.Especialidad,
+                    Fecha = x.FechaCita,
+                    Estado = x.Estado,
+                    Motivo = x.Motivo,
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt,
+                }
+            ).ToList();
+
+            return Ok(new {
+                documents = rxData,
+                checkpoint = rxData.Count > 0 ? rxData?.Select(x => x.UpdatedAt).Max() : null,
+            });
         }
 
         [HttpPost("push")]
@@ -64,37 +90,37 @@ namespace Medicina.Controllers
                     string fechaCita = cita.FechaCita.ToString("dd/MM/yyyy");
                     string horaCita = cita.FechaCita.ToString("HH:mm");
                     string cuerpoCorreoHtml = $@"
-            <html>
-            <body style='font-family: Arial, sans-serif; color: #333;'>
-                <h2>Confirmación de Cita Médica</h2>
-                <p>Estimado/a {cita.paciente.Nombre},</p>
+                        <html>
+                        <body style='font-family: Arial, sans-serif; color: #333;'>
+                            <h2>Confirmación de Cita Médica</h2>
+                            <p>Estimado/a {cita.paciente.Nombre},</p>
 
-                <p>Su cita médica ha sido confirmada. A continuación, encontrará los detalles de su cita:</p>
+                            <p>Su cita médica ha sido confirmada. A continuación, encontrará los detalles de su cita:</p>
                 
-                <table style='border-collapse: collapse; width: 100%; max-width: 600px;'>
-                    <tr>
-                        <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Fecha de la cita:</td>
-                        <td style='padding: 8px; border: 1px solid #ddd;'>{fechaCita}</td>
-                    </tr>
-                    <tr>
-                        <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Hora de la cita:</td>
-                        <td style='padding: 8px; border: 1px solid #ddd;'>{horaCita}</td>
-                    </tr>
-                    <tr>
-                        <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Doctor:</td>
-                        <td style='padding: 8px; border: 1px solid #ddd;'>Dr./Dra. {cita.doctor.Nombre}</td>
-                    </tr>
-                    <tr>
-                        <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Especialidad:</td>
-                        <td style='padding: 8px; border: 1px solid #ddd;'>{cita.Especialidad}</td>
-                    </tr>
-                </table>
+                            <table style='border-collapse: collapse; width: 100%; max-width: 600px;'>
+                                <tr>
+                                    <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Fecha de la cita:</td>
+                                    <td style='padding: 8px; border: 1px solid #ddd;'>{fechaCita}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Hora de la cita:</td>
+                                    <td style='padding: 8px; border: 1px solid #ddd;'>{horaCita}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Doctor:</td>
+                                    <td style='padding: 8px; border: 1px solid #ddd;'>Dr./Dra. {cita.doctor.Nombre}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Especialidad:</td>
+                                    <td style='padding: 8px; border: 1px solid #ddd;'>{cita.Especialidad}</td>
+                                </tr>
+                            </table>
 
-                <p>Atentamente,</p>
-                <p><strong>Su equipo médico</strong></p>
-            </body>
-            </html>
-        ";
+                            <p>Atentamente,</p>
+                            <p><strong>Su equipo médico</strong></p>
+                        </body>
+                        </html>
+                    ";
                     await emailService.EnviarCorreoConfirmacionCita(cita.paciente.Email,"Su cita medica ha sido confirmada", cuerpoCorreoHtml);
                 }
                 catch (Exception ex)

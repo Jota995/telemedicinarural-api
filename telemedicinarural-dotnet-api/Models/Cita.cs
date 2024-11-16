@@ -19,7 +19,9 @@ namespace Medicina.Models
         public DateTime FechaCita { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        [BsonIgnore]
         public Doctor doctor { get; set; }
+        [BsonIgnore]
         public Paciente paciente { get; set; }
     }
 

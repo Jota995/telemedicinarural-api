@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualBasic;
 
-namespace Medicina.Controllers
+namespace TelemedicinaRural.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

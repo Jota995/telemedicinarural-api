@@ -19,16 +19,25 @@ namespace Medicina.Repository
             this.agenda = agenda;
         }
 
-        public async Task<List<Doctor>> Get()
+        public async Task<List<Doctor>> Get(DateTime? updatedAt = null, int? limit = 10)
         {
-            var data = await doctores.Find(x => true).ToListAsync();
+            var filterBuilder = Builders<Doctor>.Filter;
+            var filter = filterBuilder.Empty;
 
-            foreach(var doctor in data)
+            if (updatedAt.HasValue)
             {
-                if(doctor.IdsAgenda is null || doctor.IdsAgenda.Count == 0) continue;
-
-                doctor.agendaMedica = await agenda.Get(doctor.IdsAgenda);
+                var updatedAtUtc = updatedAt.Value.ToUniversalTime();
+                filter = filter & filterBuilder.Gte(x => x.UpdatedAt, updatedAtUtc);
             }
+
+            var query = doctores.Find(filter);
+
+            if (limit.HasValue)
+            {
+                query = query.Limit(limit.Value);
+            }
+
+            var data = await query.ToListAsync();
 
             return data;
         }
@@ -57,7 +66,10 @@ namespace Medicina.Repository
             var objectIdAgenda = ObjectId.Parse(idAgenda);
 
             var filter = Builders<Doctor>.Filter.Eq(d => d.Id, objectIdDoctor);
-            var update = Builders<Doctor>.Update.Push(d => d.IdsAgenda,objectIdAgenda);
+            var update = Builders<Doctor>.Update.Combine(
+                Builders<Doctor>.Update.Push(d => d.IdsAgenda, objectIdAgenda), // Agregar a la lista
+                Builders<Doctor>.Update.Set(d => d.UpdatedAt, DateTime.UtcNow)  // Actualizar "UpdatedAt"
+            );
 
             await doctores.UpdateOneAsync(filter,update);
         }

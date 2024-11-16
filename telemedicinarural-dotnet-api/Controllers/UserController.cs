@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace Medicina.Controllers
+namespace TelemedicinaRural.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

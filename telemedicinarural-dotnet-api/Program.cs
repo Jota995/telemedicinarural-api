@@ -6,7 +6,7 @@ using Medicina.Models;
 using Medicina.Services;
 using AspNetCore.Identity.MongoDbCore.Infrastructure;
 using Microsoft.Extensions.Options;
-using Medicina.Controllers;
+using TelemedicinaRural.Controllers;
 using MongoDB.Driver;
 using Medicina.Repository;
 

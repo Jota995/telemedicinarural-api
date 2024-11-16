@@ -18,6 +18,32 @@ namespace Medicina.Repository
             this.citaCollection = context.database.GetCollection<Cita>(CollectionName);
         }
 
+        public async Task<List<Cita>> Get(DateTime? updatedAt = null, int? limit = 10)
+        {
+            // Construimos el filtro dinámicamente
+            var filterBuilder = Builders<Cita>.Filter;
+            var filter = filterBuilder.Empty; // Esto equivale a "x => true"
+
+            // Aplicar el filtro para `updatedAt` si se proporciona
+            if (updatedAt.HasValue)
+            {
+                var updatedAtUtc = updatedAt.Value.ToUniversalTime();
+                filter = filter & filterBuilder.Gte(x => x.UpdatedAt, updatedAtUtc);
+            }
+
+            var query = citaCollection.Find(filter);
+
+            if (limit.HasValue)
+            {
+                query = query.Limit(limit.Value);
+            }
+
+            // Ejecutar la consulta y devolver los resultados
+            var results = await query.ToListAsync();
+
+            return results;
+        }
+
         public async Task<Cita> agendarCita(Cita cita)
         {
             var doctor = await this.doctorRepository.GetOne(cita.IdDoctor.ToString());

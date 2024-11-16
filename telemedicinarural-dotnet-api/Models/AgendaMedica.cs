@@ -21,4 +21,15 @@ namespace Medicina.Models
         [BsonIgnore]
         public Doctor doctor { get; set; }
     }
+
+    public class RxAgendaMedica
+    {
+        public string Id { get; set; }
+        public string IdDoctor { get; set; }
+        public string Especialidad { get; set; }
+        public DateTime Fecha { get; set; }
+        public string Estado { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
 }
