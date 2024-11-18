@@ -73,5 +73,27 @@ namespace Medicina.Repository
 
             await doctores.UpdateOneAsync(filter,update);
         }
+
+        public async Task Update(Doctor doctor)
+        {
+            if (doctor == null || doctor.Id == ObjectId.Empty)
+            {
+                throw new ArgumentException("Doctor invalido o ID vacío.");
+            }
+
+            var filter = Builders<Doctor>.Filter.Eq(d => d.Id, doctor.Id);
+
+            var update = Builders<Doctor>.Update.Combine(
+                    Builders<Doctor>.Update.Set(a => a.Nombre, doctor.Nombre),
+                    Builders<Doctor>.Update.Set(a => a.FechaNacimiento, doctor.FechaNacimiento),
+                    Builders<Doctor>.Update.Set(a => a.Genero, doctor.Genero),
+                    Builders<Doctor>.Update.Set(a => a.EstadoCivil, doctor.EstadoCivil),
+                    Builders<Doctor>.Update.Set(a => a.Nacionalidad, doctor.Nacionalidad),
+                    Builders<Doctor>.Update.Set(a => a.Email, doctor.Email),
+                    Builders<Doctor>.Update.Set(a => a.UpdatedAt, DateTime.UtcNow)
+                );
+
+            await doctores.UpdateOneAsync(filter, update);
+        }
     }
 }

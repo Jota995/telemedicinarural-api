@@ -25,7 +25,7 @@ namespace TelemedicinaRural.Controllers
         public async Task<IActionResult> PullData([FromQuery] DateTime? UpdatedAt = null, [FromQuery] int? Limit = null, [FromQuery] string? Estado = null)
         {
 
-            var data = await agendaRepo.GetAll(updatedAt:UpdatedAt, limit:Limit, estado:Estado);
+            var data = await agendaRepo.GetAll(updatedAt:UpdatedAt, limit:Limit);
 
             var rxData = data
                 .Select(x =>
@@ -44,7 +44,7 @@ namespace TelemedicinaRural.Controllers
             return Ok(new
             {
                 documents = rxData,
-                checkpoint = rxData.Select(x => x.UpdatedAt).Max()
+                checkpoint = rxData.Any() ? rxData?.Max(x => x.UpdatedAt) : null,
             });
         }
 
@@ -70,9 +70,20 @@ namespace TelemedicinaRural.Controllers
                         UpdatedAt = rxagenda.UpdatedAt
                     };
 
-                    var result = await agendaRepo.Insert(agenda);
-                    var doctor = await doctorRepo.GetOne(agenda.IdDoctor.ToString());
-                    await doctorRepo.InsertAgenda(doctor.Id.ToString(), result.Id.ToString());
+                    var existeAgenda = await agendaRepo.GetAll(idAgenda:agenda.Id.ToString());
+
+                    if (!existeAgenda.Any())
+                    {
+                        var result = await agendaRepo.Insert(agenda);
+                        var doctor = await doctorRepo.GetOne(agenda.IdDoctor.ToString());
+                        await doctorRepo.InsertAgenda(doctor.Id.ToString(), result.Id.ToString());
+                    }
+                    else
+                    {
+                        await agendaRepo.Update(agenda);
+                    }
+
+                    
                 }
                 catch (Exception ex)
                 {

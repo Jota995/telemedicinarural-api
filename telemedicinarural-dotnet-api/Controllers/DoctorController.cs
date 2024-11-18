@@ -43,7 +43,7 @@ namespace TelemedicinaRural.Controllers
             return Ok(new
             {
                 documents = rxData,
-                checkpoint = rxData.Select(x => x.UpdatedAt).Max()
+                checkpoint = rxData.Any() ? rxData?.Max(x => x.UpdatedAt) : null,
             });
         }
 

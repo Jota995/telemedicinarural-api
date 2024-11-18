@@ -16,7 +16,7 @@ namespace Medicina.Repository
             this.agendaCollection = context.database.GetCollection<AgendaMedica>(CollectionName);
         }
 
-        public async Task<List<AgendaMedica>> GetAll(string? estado = null,DateTime? updatedAt = null, int? limit = 10)
+        public async Task<List<AgendaMedica>> GetAll(string? estado = null,DateTime? updatedAt = null, int? limit = 10, string idAgenda = null)
         {
             // Construimos el filtro dinámicamente
             var filterBuilder = Builders<AgendaMedica>.Filter;
@@ -32,6 +32,12 @@ namespace Medicina.Repository
             if (!string.IsNullOrEmpty(estado))
             {
                 filter = filter & filterBuilder.Eq(x => x.Estado, estado);
+            }
+
+            if (!string.IsNullOrEmpty(idAgenda))
+            {
+                var id = ObjectId.Parse(idAgenda);
+                filter = filter & filterBuilder.Eq(x => x.Id, id);
             }
 
             // Aplicar el límite de la consulta si se especifica
@@ -64,11 +70,19 @@ namespace Medicina.Repository
             return agenda;
         }
 
-        public async Task UpdateAgenda(AgendaMedica agenda)
+        public async Task Update(AgendaMedica agenda)
         {
+            if (agenda == null || agenda.Id == ObjectId.Empty)
+            {
+                throw new ArgumentException("Agenda inválida o ID vacío.");
+            }
+
             var filter = Builders<AgendaMedica>.Filter.Eq(d => d.Id, agenda.Id);
+
             var update = Builders<AgendaMedica>.Update.Combine(
-                    Builders<AgendaMedica>.Update.Set(a => a.Estado, "agendada"),
+                    Builders<AgendaMedica>.Update.Set(a => a.Fecha, agenda.Fecha),
+                    Builders<AgendaMedica>.Update.Set(a => a.Estado, agenda.Estado),
+                    Builders<AgendaMedica>.Update.Set(a => a.Especialidad, agenda.Especialidad),
                     Builders<AgendaMedica>.Update.Set(a => a.UpdatedAt, DateTime.UtcNow)
                 );
 

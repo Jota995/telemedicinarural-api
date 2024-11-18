@@ -1,5 +1,6 @@
 ﻿using Medicina.Models;
 using Medicina.Services;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace Medicina.Repository
@@ -11,14 +12,14 @@ namespace Medicina.Repository
         private readonly DoctorRepository doctorRepository;
         private readonly AgendaRepository agendaRepository;
 
-        public CitaRepository(MongoDbContext context,DoctorRepository doctorRepository,AgendaRepository agendaRepository)
+        public CitaRepository(MongoDbContext context, DoctorRepository doctorRepository, AgendaRepository agendaRepository)
         {
             this.doctorRepository = doctorRepository;
             this.agendaRepository = agendaRepository;
             this.citaCollection = context.database.GetCollection<Cita>(CollectionName);
         }
 
-        public async Task<List<Cita>> Get(DateTime? updatedAt = null, int? limit = 10)
+        public async Task<List<Cita>> Get(DateTime? updatedAt = null, int? limit = 10, string? IdCita = null)
         {
             // Construimos el filtro dinámicamente
             var filterBuilder = Builders<Cita>.Filter;
@@ -29,6 +30,12 @@ namespace Medicina.Repository
             {
                 var updatedAtUtc = updatedAt.Value.ToUniversalTime();
                 filter = filter & filterBuilder.Gte(x => x.UpdatedAt, updatedAtUtc);
+            }
+
+            if (!string.IsNullOrEmpty(IdCita))
+            {
+                var id = ObjectId.Parse(IdCita);
+                filter = filter & filterBuilder.Eq(x => x.Id, id);
             }
 
             var query = citaCollection.Find(filter);
@@ -54,14 +61,37 @@ namespace Medicina.Repository
 
             if (agenda == null) throw new Exception("No existe disponibilidad del doctor o agenda");
 
-            cita.Estado = "Programada";
+            cita.Estado = "programada";
 
             citaCollection.InsertOne(cita);
 
-            await agendaRepository.UpdateAgenda(agenda);
+            agenda.Estado = "agendada";
+
+            await agendaRepository.Update(agenda);
 
             return cita;
+        }
 
-        } 
+        public async Task Update(Cita cita)
+        {
+            if (cita == null || cita.Id == ObjectId.Empty)
+            {
+                throw new ArgumentException("Cita inválida o ID vacío.");
+            }
+
+            var filter = Builders<Cita>.Filter.Eq(d => d.Id, cita.Id);
+
+            var update = Builders<Cita>.Update.Combine(
+                    Builders<Cita>.Update.Set(a => a.Especialidad, cita.Especialidad),
+                    Builders<Cita>.Update.Set(a => a.Motivo, cita.Motivo),
+                    Builders<Cita>.Update.Set(a => a.Estado, cita.Estado),
+                    Builders<Cita>.Update.Set(a => a.Inicio, cita.Inicio),
+                    Builders<Cita>.Update.Set(a => a.Fin, cita.Fin),
+                    Builders<Cita>.Update.Set(a => a.FechaCita, cita.FechaCita),
+                    Builders<Cita>.Update.Set(a => a.UpdatedAt, DateTime.UtcNow)
+                );
+
+            await citaCollection.UpdateOneAsync(filter, update);
+        }
     }
 }

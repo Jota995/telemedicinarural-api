@@ -38,27 +38,36 @@ namespace TelemedicinaRural.Controllers
         [HttpGet("pulldata")]
         public async Task<IActionResult> GetData([FromQuery] DateTime? UpdatedAt = null, [FromQuery] int? Limit = null)
         {
-            var data = await citaRepository.Get(updatedAt:UpdatedAt,limit:Limit);
+            try
+            {
+                var data = await citaRepository.Get(updatedAt: UpdatedAt, limit: Limit);
 
-            var rxData = data.Select(x =>
-                new RxCita()
+                var rxData = data.Select(x =>
+                    new RxCita()
+                    {
+                        Id = x.Id.ToString(),
+                        IdPaciente = x.IdPaciente.ToString(),
+                        idDoctor = x.IdDoctor.ToString(),
+                        Especialidad = x.Especialidad,
+                        Fecha = x.FechaCita,
+                        Estado = x.Estado,
+                        Motivo = x.Motivo,
+                        CreatedAt = x.CreatedAt,
+                        UpdatedAt = x.UpdatedAt,
+                    }
+                ).ToList();
+
+                return Ok(new
                 {
-                    Id = x.Id.ToString(),
-                    IdPaciente = x.IdPaciente.ToString(),
-                    idDoctor = x.IdDoctor.ToString(),
-                    Especialidad = x.Especialidad,
-                    Fecha = x.FechaCita,
-                    Estado = x.Estado,
-                    Motivo = x.Motivo,
-                    CreatedAt = x.CreatedAt,
-                    UpdatedAt = x.UpdatedAt,
-                }
-            ).ToList();
+                    documents = rxData,
+                    checkpoint = rxData.Any() ? rxData?.Max(x => x.UpdatedAt) : null,
+                });
+            }
+            catch (Exception ex)
+            {
 
-            return Ok(new {
-                documents = rxData,
-                checkpoint = rxData.Count > 0 ? rxData?.Select(x => x.UpdatedAt).Max() : null,
-            });
+                throw ex;
+            }
         }
 
         [HttpPost("push")]
@@ -66,7 +75,7 @@ namespace TelemedicinaRural.Controllers
         {
             var citas = rxCitas.Select(x => new Cita()
             {
-                Id = ObjectId.GenerateNewId(),
+                Id = ObjectId.Parse(x.Id),
                 IdPaciente = ObjectId.Parse(x.IdPaciente),
                 IdDoctor = ObjectId.Parse(x.idDoctor),
                 Especialidad = x.Especialidad,
@@ -81,47 +90,60 @@ namespace TelemedicinaRural.Controllers
             {
                 try
                 {
-                    await citaRepository.agendarCita(cita);
-                    var paciente = await pacienteRepository.ObtenerPaciente(cita.IdPaciente.ToString());
-                    var doctor = await doctorRepository.GetOne(cita.IdDoctor.ToString());
-                    cita.paciente = paciente;
-                    cita.doctor = doctor;
+                    var existeCita = await citaRepository.Get(IdCita: cita.Id.ToString());
 
-                    string fechaCita = cita.FechaCita.ToString("dd/MM/yyyy");
-                    string horaCita = cita.FechaCita.ToString("HH:mm");
-                    string cuerpoCorreoHtml = $@"
-                        <html>
-                        <body style='font-family: Arial, sans-serif; color: #333;'>
-                            <h2>Confirmación de Cita Médica</h2>
-                            <p>Estimado/a {cita.paciente.Nombre},</p>
+                    if (!existeCita.Any())
+                    {
+                        await citaRepository.agendarCita(cita);
 
-                            <p>Su cita médica ha sido confirmada. A continuación, encontrará los detalles de su cita:</p>
+                        var paciente = await pacienteRepository.ObtenerPaciente(cita.IdPaciente.ToString());
+                        var doctor = await doctorRepository.GetOne(cita.IdDoctor.ToString());
+
+                        cita.paciente = paciente;
+                        cita.doctor = doctor;
+
+                        string fechaCita = cita.FechaCita.ToLocalTime().ToString("dd/MM/yyyy");
+                        string horaCita = cita.FechaCita.ToLocalTime().ToString("HH:mm");
+                        string cuerpoCorreoHtml = $@"
+                            <html>
+                            <body style='font-family: Arial, sans-serif; color: #333;'>
+                                <h2>Confirmación de Cita Médica</h2>
+                                <p>Estimado/a {cita.paciente.Nombre},</p>
+
+                                <p>Su cita médica ha sido confirmada. A continuación, encontrará los detalles de su cita:</p>
                 
-                            <table style='border-collapse: collapse; width: 100%; max-width: 600px;'>
-                                <tr>
-                                    <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Fecha de la cita:</td>
-                                    <td style='padding: 8px; border: 1px solid #ddd;'>{fechaCita}</td>
-                                </tr>
-                                <tr>
-                                    <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Hora de la cita:</td>
-                                    <td style='padding: 8px; border: 1px solid #ddd;'>{horaCita}</td>
-                                </tr>
-                                <tr>
-                                    <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Doctor:</td>
-                                    <td style='padding: 8px; border: 1px solid #ddd;'>Dr./Dra. {cita.doctor.Nombre}</td>
-                                </tr>
-                                <tr>
-                                    <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Especialidad:</td>
-                                    <td style='padding: 8px; border: 1px solid #ddd;'>{cita.Especialidad}</td>
-                                </tr>
-                            </table>
+                                <table style='border-collapse: collapse; width: 100%; max-width: 600px;'>
+                                    <tr>
+                                        <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Fecha de la cita:</td>
+                                        <td style='padding: 8px; border: 1px solid #ddd;'>{fechaCita}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Hora de la cita:</td>
+                                        <td style='padding: 8px; border: 1px solid #ddd;'>{horaCita}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Doctor:</td>
+                                        <td style='padding: 8px; border: 1px solid #ddd;'>Dr./Dra. {cita.doctor.Nombre}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>Especialidad:</td>
+                                        <td style='padding: 8px; border: 1px solid #ddd;'>{cita.Especialidad}</td>
+                                    </tr>
+                                </table>
 
-                            <p>Atentamente,</p>
-                            <p><strong>Su equipo médico</strong></p>
-                        </body>
-                        </html>
-                    ";
-                    await emailService.EnviarCorreoConfirmacionCita(cita.paciente.Email,"Su cita medica ha sido confirmada", cuerpoCorreoHtml);
+                                <p>Atentamente,</p>
+                                <p><strong>Su equipo médico</strong></p>
+                            </body>
+                            </html>
+                        ";
+                        await emailService.EnviarCorreoConfirmacionCita(cita.paciente.Email, "Su cita medica ha sido confirmada", cuerpoCorreoHtml);
+                    }
+                    else
+                    {
+                        await citaRepository.Update(cita);
+                    }
+
+                    
                 }
                 catch (Exception ex)
                 {
